@@ -1,0 +1,68 @@
+{
+  "config": "C3_composite_ce_softf1",
+  "fold": 1,
+  "n_train": 11445,
+  "n_val": 2861,
+  "inner_scores": {
+    "2.0": 0.7607576863558765,
+    "8.0": 0.7605147040611298,
+    "32.0": 0.7594149072148929
+  },
+  "C_star": 2.0,
+  "inner_oof_raw": 0.7524353315426935,
+  "bias": [
+    0.0,
+    0.5031371661960744,
+    0.3354247774640662,
+    4.973799150320701e-14
+  ],
+  "temperature": 1.0193082636074555,
+  "train_loss": 0.13035849226870247,
+  "val_loss": 0.49380913765159473,
+  "stages": [
+    {
+      "alpha": 1.0,
+      "n_iter": 142,
+      "objective": 0.1960586253813128,
+      "data_loss": 0.10527696971045106,
+      "converged": true,
+      "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH"
+    },
+    {
+      "alpha": 0.8125,
+      "n_iter": 90,
+      "objective": 0.21361801487575757,
+      "data_loss": 0.11687874205275339,
+      "converged": true,
+      "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH"
+    },
+    {
+      "alpha": 0.4375000000000001,
+      "n_iter": 119,
+      "objective": 0.23184717056792553,
+      "data_loss": 0.127533054371009,
+      "converged": true,
+      "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH"
+    },
+    {
+      "alpha": 0.25,
+      "n_iter": 126,
+      "objective": 0.2343167262516351,
+      "data_loss": 0.13035849226870247,
+      "converged": true,
+      "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH"
+    }
+  ],
+  "fit_seconds": 106.14630317687988,
+  "val_nll_raw": 0.3172522475947011,
+  "val_nll_temperature": 0.3167796846967923,
+  "val_f1_raw": 0.7355280325949775,
+  "val_f1_post": 0.7393754369362536,
+  "val_per_class_post": [
+    0.9265882352941176,
+    0.6067415730337079,
+    0.5622119815668203,
+    0.8619599578503688
+  ],
+  "seconds": 806.5959475040436
+}

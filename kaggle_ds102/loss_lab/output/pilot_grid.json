@@ -1,0 +1,405 @@
+{
+  "protocol": "inner split 0 of outer-fold-0 training part; outer validation never read",
+  "grid": [
+    0.125,
+    0.5,
+    2.0,
+    8.0,
+    32.0
+  ],
+  "specs": {
+    "sq_hinge_balanced": {
+      "name": "squared_hinge_ovr",
+      "weights": "balanced"
+    },
+    "ce_balanced": {
+      "name": "ce",
+      "weights": "balanced"
+    },
+    "cb_focal": {
+      "name": "focal",
+      "gamma": 2.0,
+      "weights": "effective",
+      "beta": 0.999
+    },
+    "logit_adjusted": {
+      "name": "logit_adjusted",
+      "tau": 1.0
+    },
+    "composite": {
+      "name": "composite",
+      "base": {
+        "name": "ce",
+        "weights": "balanced"
+      },
+      "metric": {
+        "name": "soft_macro_f1"
+      },
+      "stages": 4,
+      "alpha_min": 0.25
+    }
+  },
+  "rows": [
+    {
+      "loss": "sklearn_LinearSVC_C0.5",
+      "seconds": 11.1,
+      "raw_f1": 0.75495,
+      "biased_f1_in_sample": 0.76872
+    },
+    {
+      "loss": "sq_hinge_balanced",
+      "C": 0.125,
+      "seconds": 24.0,
+      "iters": [
+        169
+      ],
+      "converged": [
+        true
+      ],
+      "raw_f1": 0.76112,
+      "biased_f1_in_sample": 0.76825
+    },
+    {
+      "loss": "sq_hinge_balanced",
+      "C": 0.5,
+      "seconds": 38.7,
+      "iters": [
+        263
+      ],
+      "converged": [
+        true
+      ],
+      "raw_f1": 0.75495,
+      "biased_f1_in_sample": 0.76846
+    },
+    {
+      "loss": "sq_hinge_balanced",
+      "C": 2.0,
+      "seconds": 63.8,
+      "iters": [
+        436
+      ],
+      "converged": [
+        true
+      ],
+      "raw_f1": 0.74988,
+      "biased_f1_in_sample": 0.76108
+    },
+    {
+      "loss": "sq_hinge_balanced",
+      "C": 8.0,
+      "seconds": 72.9,
+      "iters": [
+        500
+      ],
+      "converged": [
+        false
+      ],
+      "raw_f1": 0.74439,
+      "biased_f1_in_sample": 0.75275
+    },
+    {
+      "loss": "sq_hinge_balanced",
+      "C": 32.0,
+      "seconds": 73.5,
+      "iters": [
+        500
+      ],
+      "converged": [
+        false
+      ],
+      "raw_f1": 0.73722,
+      "biased_f1_in_sample": 0.75276
+    },
+    {
+      "loss": "ce_balanced",
+      "C": 0.125,
+      "seconds": 9.4,
+      "iters": [
+        51
+      ],
+      "converged": [
+        true
+      ],
+      "raw_f1": 0.68021,
+      "biased_f1_in_sample": 0.7424
+    },
+    {
+      "loss": "ce_balanced",
+      "C": 0.5,
+      "seconds": 11.7,
+      "iters": [
+        83
+      ],
+      "converged": [
+        true
+      ],
+      "raw_f1": 0.72258,
+      "biased_f1_in_sample": 0.7551
+    },
+    {
+      "loss": "ce_balanced",
+      "C": 2.0,
+      "seconds": 17.2,
+      "iters": [
+        118
+      ],
+      "converged": [
+        true
+      ],
+      "raw_f1": 0.74171,
+      "biased_f1_in_sample": 0.7633
+    },
+    {
+      "loss": "ce_balanced",
+      "C": 8.0,
+      "seconds": 21.7,
+      "iters": [
+        151
+      ],
+      "converged": [
+        true
+      ],
+      "raw_f1": 0.75065,
+      "biased_f1_in_sample": 0.76104
+    },
+    {
+      "loss": "ce_balanced",
+      "C": 32.0,
+      "seconds": 27.0,
+      "iters": [
+        189
+      ],
+      "converged": [
+        true
+      ],
+      "raw_f1": 0.75203,
+      "biased_f1_in_sample": 0.76211
+    },
+    {
+      "loss": "cb_focal",
+      "C": 0.125,
+      "seconds": 7.4,
+      "iters": [
+        54
+      ],
+      "converged": [
+        true
+      ],
+      "raw_f1": 0.70521,
+      "biased_f1_in_sample": 0.74216
+    },
+    {
+      "loss": "cb_focal",
+      "C": 0.5,
+      "seconds": 11.9,
+      "iters": [
+        85
+      ],
+      "converged": [
+        true
+      ],
+      "raw_f1": 0.73785,
+      "biased_f1_in_sample": 0.75287
+    },
+    {
+      "loss": "cb_focal",
+      "C": 2.0,
+      "seconds": 16.2,
+      "iters": [
+        114
+      ],
+      "converged": [
+        true
+      ],
+      "raw_f1": 0.74557,
+      "biased_f1_in_sample": 0.75643
+    },
+    {
+      "loss": "cb_focal",
+      "C": 8.0,
+      "seconds": 19.4,
+      "iters": [
+        134
+      ],
+      "converged": [
+        true
+      ],
+      "raw_f1": 0.74558,
+      "biased_f1_in_sample": 0.75901
+    },
+    {
+      "loss": "cb_focal",
+      "C": 32.0,
+      "seconds": 25.3,
+      "iters": [
+        177
+      ],
+      "converged": [
+        true
+      ],
+      "raw_f1": 0.74451,
+      "biased_f1_in_sample": 0.75931
+    },
+    {
+      "loss": "logit_adjusted",
+      "C": 0.125,
+      "seconds": 5.3,
+      "iters": [
+        40
+      ],
+      "converged": [
+        true
+      ],
+      "raw_f1": 0.58798,
+      "biased_f1_in_sample": 0.73848
+    },
+    {
+      "loss": "logit_adjusted",
+      "C": 0.5,
+      "seconds": 9.1,
+      "iters": [
+        67
+      ],
+      "converged": [
+        true
+      ],
+      "raw_f1": 0.63418,
+      "biased_f1_in_sample": 0.75555
+    },
+    {
+      "loss": "logit_adjusted",
+      "C": 2.0,
+      "seconds": 14.6,
+      "iters": [
+        104
+      ],
+      "converged": [
+        true
+      ],
+      "raw_f1": 0.67887,
+      "biased_f1_in_sample": 0.76889
+    },
+    {
+      "loss": "logit_adjusted",
+      "C": 8.0,
+      "seconds": 19.8,
+      "iters": [
+        137
+      ],
+      "converged": [
+        true
+      ],
+      "raw_f1": 0.71655,
+      "biased_f1_in_sample": 0.76466
+    },
+    {
+      "loss": "logit_adjusted",
+      "C": 32.0,
+      "seconds": 23.9,
+      "iters": [
+        166
+      ],
+      "converged": [
+        true
+      ],
+      "raw_f1": 0.7316,
+      "biased_f1_in_sample": 0.76603
+    },
+    {
+      "loss": "composite",
+      "C": 0.125,
+      "seconds": 19.6,
+      "iters": [
+        51,
+        31,
+        31,
+        33
+      ],
+      "converged": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "raw_f1": 0.70904,
+      "biased_f1_in_sample": 0.72736
+    },
+    {
+      "loss": "composite",
+      "C": 0.5,
+      "seconds": 36.0,
+      "iters": [
+        83,
+        47,
+        56,
+        71
+      ],
+      "converged": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "raw_f1": 0.74634,
+      "biased_f1_in_sample": 0.74997
+    },
+    {
+      "loss": "composite",
+      "C": 2.0,
+      "seconds": 58.9,
+      "iters": [
+        118,
+        81,
+        111,
+        96
+      ],
+      "converged": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "raw_f1": 0.7534,
+      "biased_f1_in_sample": 0.75699
+    },
+    {
+      "loss": "composite",
+      "C": 8.0,
+      "seconds": 66.7,
+      "iters": [
+        151,
+        90,
+        126,
+        88
+      ],
+      "converged": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "raw_f1": 0.74231,
+      "biased_f1_in_sample": 0.76185
+    },
+    {
+      "loss": "composite",
+      "C": 32.0,
+      "seconds": 71.2,
+      "iters": [
+        189,
+        101,
+        95,
+        88
+      ],
+      "converged": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "raw_f1": 0.74104,
+      "biased_f1_in_sample": 0.7593
+    }
+  ]
+}
