@@ -17,7 +17,10 @@ from __future__ import annotations
 import numpy as np
 from scipy.optimize import brute, minimize_scalar
 
-from losses import log_softmax, macro_f1
+try:
+    from .losses import log_softmax, macro_f1
+except ImportError:
+    from losses import log_softmax, macro_f1
 
 
 def logit_scale(Z):

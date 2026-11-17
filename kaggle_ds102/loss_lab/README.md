@@ -4,9 +4,17 @@
 from-scratch trainer, macro-F1 post-processing and a **fully nested** cross-validated
 ablation. Nothing in v1–v60 is modified; existing scripts keep working.
 
-> **Tóm tắt (VI).** Thư mục này thử nghiệm các hàm loss cho mô hình tuyến tính TF-IDF và LightGBM của DS102, tất cả học từ đầu (không pretrained), thống kê loss/ngưỡng chỉ tính trong phần train của từng fold (CV lồng nhau 5×3). Kết quả và khuyến nghị nằm ở mục 6–7.
+> **Tóm tắt (VI).** Thư mục này thử nghiệm các hàm loss cho nhánh tuyến tính TF-IDF và nhánh GBDT (LightGBM/CatBoost trên đặc trưng SVD) của DS102, tất cả học từ đầu (không pretrained); thống kê loss và ngưỡng chỉ tính trong phần train của từng fold (CV lồng nhau 5×3, kiểm lại trên seed chia fold thứ hai). Kết luận: (1) nhánh tuyến tính nên **giữ squared hinge OvR hiện tại** — không loss nào trong 5 ứng viên (CE có trọng số, focal cân bằng lớp, logit-adjusted, hai loss kết hợp soft macro-F1) vượt nó, focal kém rõ rệt; (2) ở GBDT, cải thiện ổn định đến từ việc **không dừng sớm theo macro-F1 khi loss có trọng số lớp** (dừng theo log-loss: +0,007 F1-macro OOF, tốt hơn ở 10/10 fold qua hai seed chia fold, offset cross-fit); logit adjustment hòa với cách đó và tương đương SqrtBalanced trên CatBoost 800 cây. Chưa nộp Kaggle.
 
-<!-- RESULTS_TLDR -->
+## TL;DR
+
+**Question.** Can a better training loss raise out-of-fold F1-macro of DS102's from-scratch models — the TF-IDF linear branch and the latent-feature GBDT branch of the V11 ensemble — under strict, leakage-free nested CV?
+
+**Answer.**
+1. **Linear TF-IDF branch: keep the repo's squared-hinge one-vs-rest loss.** Of five candidates (weighted CE, class-balanced focal, logit-adjusted CE, and two annealed CE→soft-macro-F1 composites), none beats it; with scale-matched offsets four of them are significantly worse, focal the most (−0.012, 95 % CI [−0.021, −0.003]). Soft-F1 does what the theory says — it moves CE's own decision rule toward macro-F1 (+0.008 raw) and gives the best-calibrated raw probabilities — but cannot overtake the hinge. Confirmed on fresh folds: over 10 outer folds (two split seeds) the hinge averages 0.7662 cross-fit vs 0.7606 for the best composite and 0.7584 for focal.
+2. **GBDT branch: the replicable gain comes from how the surrogate meets early stopping, not from a new loss surface.** With row-weighted CE, early stopping on the macro-F1 `feval` halts at ~90 rounds and under-fits; stopping on log-loss instead adds **+0.007 OOF F1-macro (10/10 folds over two split seeds)**. Logit adjustment (training-only τ·log π init score) beats the macro-F1-stopped baseline by +0.011, ties with log-loss stopping on fresh folds, and equals SqrtBalanced on the production CatBoost at a fixed 800 trees (Δ −0.0004). Class-balanced focal never helps (linear, LightGBM, and the repo's earlier CNN).
+3. **Best standalone OOF F1-macro (seed 102, cross-fit offsets):** linear hinge with nested C 0.7642 (as-deployed v2 linear component 0.7629); LightGBM latent 0.7565 (logit-adjusted) / 0.7514 (log-loss ES); production latent CatBoost 0.7381.
+4. **Deliverables:** a tested loss library (finite-difference gradient checks for 10 variants, exact focal Hessian with positivity, LightGBM custom-objective parity with the built-in), a from-scratch full-batch trainer, macro-F1 post-processing (nested and cross-fit offsets, temperature scaling), nested-CV harnesses with manifests, and the reports below. Nothing was submitted to Kaggle.
 
 ---
 
@@ -89,10 +97,15 @@ Notation: $z\in\mathbb R^K$ logits, $p=\mathrm{softmax}(z)$ via log-sum-exp, $t$
 | `linear_model.py` | `LinearLossClassifier`: $z=XW+b$, zero (or Glorot) init, full-batch L-BFGS, C-per-sample-sum convention of LinearSVC, staged composite schedule; builds the loss from the training labels only |
 | `postprocess.py` | per-class logit offsets by coordinate ascent with `scipy.optimize.brute` (macro-F1 is a step function), temperature scaling with `scipy.optimize.minimize_scalar` |
 | `data.py` | repo `load_data`/`prepare`/`FeaturesV2` reused; grouped splits; macOS guard |
-| `run_ablation.py`, `run_gbdt_ablation.py` | nested CV benchmarks with checkpoints and manifests |
+| `run_ablation.py`, `run_gbdt_ablation.py` | nested CV benchmarks (linear / LightGBM) with checkpoints, manifests, paired cluster bootstrap |
+| `run_catboost_la.py` | transfer check of logit adjustment on the production latent-CatBoost recipe |
 | `analyze_strata.py` | post-hoc class-1 template/novel strata (repo definition) |
+| `explore_blends.py` | hypothesis-generating loss-diversity blends of saved OOF logits (no fitting) |
 | `pilot_grid.py` | grid-range pilot on inner data only |
 | `test_losses.py` | 20 unit checks |
+| `output/` | JSON/Markdown reports per run (`.npz` OOF caches are git-ignored) |
+
+The package imports either way: `from loss_lab.losses import FocalLoss` from `kaggle_ds102/`, or flat imports when running the scripts inside `loss_lab/`.
 
 Numerical stability: log-softmax via log-sum-exp; $1-p$ computed as `-expm1(log p)` and clamped at `eps = 1e-7` before negative powers; soft-F1 denominators $+10^{-7}$; non-finite logits rejected; every objective/gradient checked finite during optimisation.
 
@@ -145,7 +158,7 @@ Reading:
 * **No candidate loss beats the repo's squared hinge on the linear model.** The best raw and the best cross-fit scores both belong to B0; C3's +0.0027 under nested offsets is inside its CI and flips sign under cross-fit offsets. Under the scale-matched protocol, weighted CE, CB-focal and both composites are *significantly worse*.
 * **Focal loss is the worst choice** on this architecture under both protocols, matching the repo's earlier H2 CNN result.
 * **What the theory predicted, and did happen:** soft-F1 moves CE's own decision rule toward macro-F1 (+0.0077 raw over B1) and gives the best-calibrated raw probabilities (NLL 0.298 without temperature); logit adjustment needs re-thresholding (raw 0.681 → 0.761 cross-fit) because τ = 1 targets balanced error, not F1. Neither beats the hinge, whose implicit OvR thresholds already sit close to the F1 optimum here.
-* **Novel fakes:** the gentler objectives (CB-focal, composites) trade some template memorisation for slightly better novel-fake F1 (0.341 → 0.375, mostly fewer false positives: 40 → 31–34). With 96 novel fakes this is a hint, not evidence.
+* **Novel fakes:** on these folds the gentler objectives (CB-focal, composites) traded some template memorisation for slightly better novel-fake F1 (0.341 → 0.375, mostly fewer false positives: 40 → 31–34). With 96 novel fakes this was only a hint — and it did not replicate on seed 202 (§7).
 * **Regularisation, not loss:** nested selection chose C = 0.125–0.25 for the hinge in every fold (repo uses 0.5): +0.0037 raw / +0.0031 cross-fit over R1, not significant.
 * Loss-diverse averaging (`explore_blends.py`, hypothesis-generating only): no pair of these linear models beats B0 by more than +0.002 cross-fit.
 
@@ -168,23 +181,72 @@ Reading:
 | G0-LL | +0.0063 [+0.0011, +0.0118] (4/5) | +0.0077 [+0.0014, +0.0142] (5/5) | — | — |
 | G4 | +0.0029 [−0.0058, +0.0114] (4/5) | −0.0061 [−0.0151, +0.0026] (1/5) | −0.0034 (1/5, 0.22) | −0.0137 (0/5, 0.00) |
 
-Reading:
-* **Logit adjustment is the one loss change that wins**: +0.011–0.013 over the repo-style objective on every fold with CIs above zero, and +0.005 over the stronger log-loss-early-stopped baseline on every fold (CI still spans zero). Its gain concentrates on the weakest class (class 2 F1 0.517 → 0.547).
-* **Mechanism:** with row-weighted CE, raw-argmax macro-F1 on the inner fold peaks after ~90 rounds, so metric-based early stopping halts an under-fitted booster; G0-LL shows ~half of G3's gain is recovered just by stopping on log-loss. LA keeps the booster's own decision rule aligned with the rare classes throughout training, so the metric keeps improving for ~450 rounds, and it adds additive rare-class margins without inflating 170 fake rows into 47× (or 6.9×) heavier gradients and Hessians — the leaf statistics stay unweighted.
-* **Focal loss again does not help** (G2), and the custom-objective machinery is validated: G1 (identical loss) differs from G0 only by LightGBM's column-sampling RNG, which bounds the noise floor at ≈ ±0.005 on the mean.
+Reading (seed 102 — see §7 for the replication, which tempers the first bullet):
+* On these folds logit adjustment was the best objective: +0.011–0.013 over the repo-style objective on every fold (CIs above zero) and +0.005 over the log-loss-early-stopped baseline on every fold (CI spanning zero), with the gain concentrated on the weakest class (class-2 F1 0.517 → 0.547).
+* **Mechanism — a surrogate/early-stopping interaction:** with row-weighted CE, raw-argmax macro-F1 on the inner fold peaks after ~90 rounds, so macro-F1 early stopping halts an under-fitted booster; G0-LL recovers about half of G3's gain just by stopping on log-loss. LA keeps the booster's own argmax aligned with the rare classes during training, so the metric keeps improving for ~450 rounds, and it adds rare-class margins without inflating fake rows into 6.9× heavier gradients/Hessians.
+* **Focal loss again does not help** (G2), and the custom-objective machinery is validated: G1 (identical loss) differs from G0 only by LightGBM's column-sampling RNG, which puts the noise floor at ≈ ±0.005 on the mean.
 
-<!-- RESULTS_REPLICATION -->
+## 7. Confirmation on fresh folds (split seed 202) and transfer to the production CatBoost branch
+
+Seed-102 results were used to decide what to re-test; the re-tests use new outer *and* inner folds (seed 202), identical code and hyper-parameters (`output/gbdt_seed202`, `output/ablation_seed202`).
+
+**LightGBM, seed 202** (nested-post / cross-fit fold means; Δ with cluster-bootstrap 95 % CI):
+
+| Row | seed 202 nested | seed 202 cross-fit | Δ vs G0 nested | Δ vs G0 cross-fit | Δ vs G0-LL nested | Δ vs G0-LL cross-fit |
+|---|---|---|---|---|---|---|
+| G0 (macro-F1 ES, SqrtBalanced) | 0.7328 | 0.7422 | — | — | — | — |
+| G0-LL (log-loss ES) | 0.7418 | 0.7479 | **+0.0093 [+0.0017, +0.0170]** (4/5) | +0.0050 [−0.0012, +0.0113] (5/5) | — | — |
+| G3 logit-adjusted | 0.7441 | 0.7405 | **+0.0123 [+0.0037, +0.0215]** (3/5) | −0.0024 [−0.0119, +0.0068] (1/5) | +0.0030 [−0.0049, +0.0109] (3/5) | −0.0074 [−0.0164, +0.0012] (1/5) |
+
+Pooled over both seeds (10 outer folds; fold-level t-values are descriptive because repeated-CV folds overlap):
+
+| comparison | nested Δ (folds > 0) | cross-fit Δ (folds > 0) | verdict |
+|---|---|---|---|
+| G0-LL − G0 | +0.0073 (8/10) | +0.0066 (**10/10**) | replicated: stop on log-loss, not on raw-argmax macro-F1, when the objective is row-weighted CE |
+| G3 − G0 | +0.0114 (8/10) | +0.0054 (6/10) | replicated under nested offsets, weaker under cross-fit |
+| G3 − G0-LL | +0.0041 (8/10) | −0.0011 (6/10) | **not replicated: LA ≈ properly early-stopped weighted CE** |
+
+**Transfer to the production latent-CatBoost branch** (`run_catboost_la.py`, seed 102, exactly `latent_v6.make_model()` with SVD-128, **fixed 800 trees, no early stopping**, cross-fit offsets):
+
+| Row | OOF F1 raw | OOF F1 cross-fit | per-class F1 cross-fit | val NLL raw | dev F1 (post) |
+|---|---|---|---|---|---|
+| K0 SqrtBalanced (production) | 0.7386 ± 0.0154 | 0.7381 ± 0.0211 | 0.924, 0.612, 0.544, 0.871 | 0.338 | 0.6949 |
+| K1 logit-adjusted baseline, no weights | 0.6266 ± 0.0130 | 0.7373 ± 0.0229 | 0.923, 0.630, 0.531, 0.866 | 0.621 | 0.6895 |
+
+K1 − K0 (cross-fit): −0.0004 [−0.0090, +0.0084], 1/5 folds positive. **Without an early-stopping interaction, logit adjustment and SqrtBalanced weighting are equivalent** — confirming that the LightGBM gain at seed 102 came from the surrogate/early-stopping interaction rather than from a better loss surface.
+
+**Linear model, seed 202** (R0, B0, C1, C3 — the as-deployed component, the baseline loss, the "focal is worse" claim and the only positive seed-102 delta; `output/ablation_seed202`):
+
+| Row | C* per fold | OOF F1 raw | OOF F1 nested-post | OOF F1 cross-fit | Novel-fake F1 | Δ vs B0 nested [95 % CI] (folds) | Δ vs B0 cross-fit [95 % CI] (folds) |
+|---|---|---|---|---|---|---|---|
+| R0 as deployed | 0.5 | 0.7633 ± 0.0165 | 0.7651 ± 0.0171 | 0.7648 ± 0.0172 | 0.368 | −0.0004 [−0.0079, +0.0070] (3/5) | −0.0038 [−0.0093, +0.0019] (2/5) |
+| **B0 squared hinge** | 0.125 (one fold 0.25) | **0.7703 ± 0.0131** | 0.7646 ± 0.0135 | **0.7683 ± 0.0133** | 0.352 | — | — |
+| C1 CB-focal | 8 | 0.7461 ± 0.0193 | 0.7527 ± 0.0166 | 0.7647 ± 0.0143 | 0.336 | **−0.0119 [−0.0209, −0.0031]** (0/5) | −0.0036 [−0.0113, +0.0045] (1/5) |
+| C3 CE→soft-F1 | 2 (one fold 8) | 0.7530 ± 0.0178 | 0.7604 ± 0.0120 | 0.7672 ± 0.0148 | 0.350 | −0.0042 [−0.0117, +0.0031] (1/5) | −0.0005 [−0.0072, +0.0066] (1/5) |
+
+Pooled over both seeds (10 outer folds):
+
+| Row | raw | nested-post | cross-fit | folds better than B0 (raw / nested / cross-fit) |
+|---|---|---|---|---|
+| **B0 squared hinge, nested C** | **0.7681** | **0.7628** | **0.7662** | — |
+| R0 as deployed (C = 0.5, + NB-SVM) | 0.7642 | 0.7627 | 0.7638 | 3 / 6 / 4 of 10 |
+| C3 CE→soft-F1 composite | 0.7558 | 0.7620 | 0.7606 | 1 / 4 / 2 of 10 |
+| C1 class-balanced focal | 0.7463 | 0.7541 | 0.7584 | 0 / 2 / 1 of 10 |
+
+* **Confirmed:** no candidate beats the squared hinge; C3's seed-102 nested edge (+0.0027) reverses on fresh folds (−0.0042); focal is the worst loss on both seeds (significantly worse under nested offsets at seed 202).
+* **Not confirmed:** the seed-102 hint that gentler objectives help *novel* fakes (seed 202: B0 0.352, C3 0.350, C1 0.336; R0 0.368).
+* **Small but consistent:** the hinge with nested C (0.125 in 9 of 10 folds) edges the as-deployed C = 0.5 component on both seeds (raw +0.0039, cross-fit +0.0024 over 10 folds) — a regularisation effect, not a loss effect, and within noise.
 
 ## 8. Using it in the existing pipeline (nothing existing is modified)
 
-* **LightGBM / any GBDT with logit adjustment** — the recommended change. Drop the class/row weights and pass a training-only init score; predict raw scores without it, then softmax and tune per-class offsets on OOF:
+* **GBDT early stopping (the change that replicated):** with a row-weighted CE objective, do **not** early-stop on the raw-argmax macro-F1 `feval` — it halts after ~90 rounds; stop on `multi_logloss` (or keep a fixed round count, as the production CatBoost does) and apply macro-F1 only through OOF offsets. If metric-based stopping is required, logit adjustment is the objective that tolerates it (statistically tied with log-loss stopping):
   ```python
   from loss_lab.losses import log_class_prior          # fold-local prior from y_train only
   init = np.tile(log_class_prior(y_tr, 4), (len(y_tr), 1))
   booster = lgb.train(params | {'objective': 'multiclass'}, lgb.Dataset(X_tr, y_tr, init_score=init), ...)
   z = booster.predict(X_new, raw_score=True)          # no init score here: LA decisions
   ```
-  CatBoost: `Pool(X_tr, y_tr, baseline=init)` with `auto_class_weights` removed, and `predict(..., prediction_type='RawFormulaVal')` on a baseline-free Pool (`run_catboost_la.py`).
+  CatBoost equivalent: `Pool(X_tr, y_tr, baseline=init)` with `auto_class_weights` removed and `predict(..., prediction_type='RawFormulaVal')` on a baseline-free Pool (`run_catboost_la.py`) — equivalent to SqrtBalanced at a fixed tree count, so no change is recommended there.
 * **Custom LightGBM objective with exact Hessian:** `make_lgb_focal_objective(gamma, class_weight, hess_scale=K/(K-1))` + `feval=lgb_macro_f1_eval`; LightGBM does not apply Dataset weights to custom gradients, the objective does.
 * **Any differentiable model (numpy, or wrap in `torch.autograd.Function`)**: every loss in `losses.py` returns `(value, dL/dz)`; `LinearLossClassifier(spec, C)` is a drop-in for `LinearSVC` (`fit` / `decision_function`).
 * **Post-processing:** tune offsets on OOF from models of the *same size* as the deployed ones (fold-averaged inference + offsets tuned on pooled OOF, as the dev evaluation here does). Offsets tuned on smaller inner models transfer poorly because margins grow with training size (§6.1, R0 raw 0.7651 → nested 0.7603).
@@ -202,8 +264,14 @@ python loss_lab/run_gbdt_ablation.py --data-dir DATA --out loss_lab/output/gbdt_
 python loss_lab/run_catboost_la.py --data-dir DATA --out loss_lab/output/catboost_la_seed102
 python loss_lab/analyze_strata.py  --data-dir DATA --run loss_lab/output/ablation_seed102
 python loss_lab/explore_blends.py  --run loss_lab/output/ablation_seed102
+# confirmation on fresh folds
+python loss_lab/run_gbdt_ablation.py --data-dir DATA --out loss_lab/output/gbdt_seed202 --seed 202 \
+       --configs G0_builtin_multiclass_sqrtbal G0LL_builtin_sqrtbal_loglossES G3_logit_adjusted
+python loss_lab/run_ablation.py    --data-dir DATA --out loss_lab/output/ablation_seed202 --seed 202 \
+       --configs R0_repo_v2_svm_nbsvm B0_sq_hinge_balanced C1_cb_focal C3_composite_ce_softf1
 ```
-`DATA` holds the four competition CSVs (their SHA-256 are checked into every `manifest.json`). Runtimes on a 4-vCPU Linux container: linear ablation ≈ 65 min (4.0 CPU-h), GBDT ablation ≈ 25 min + 15 min for the two robustness rows. Libraries: numpy 2.3, scipy 1.18, scikit-learn 1.7.2, LightGBM 4.7.0, CatBoost 1.2.10 (all open source). Runs resume from per-(config, fold) checkpoints; the manifest of the code that fitted the models is never overwritten by a later re-aggregation.
+Provenance: each run folder's `manifest.json` records the SHA-256 of every source file at fitting time. Edits made after a run started touched only reporting/aggregation code, the LightGBM objective helpers (not used by the linear runs) and import statements; a later re-aggregation writes `manifest_aggregation.json` instead of overwriting the fitting manifest.
+`DATA` holds the four competition CSVs (their SHA-256 are checked into every `manifest.json`). Runtimes on a 4-vCPU Linux container: linear ablation ≈ 65 min (4.0 CPU-h), GBDT ablation ≈ 25 min + 15 min for the two robustness rows, CatBoost transfer ≈ 15 min, seed-202 re-runs ≈ 20 min (GBDT) and ≈ 35 min (linear). Libraries: numpy 2.3, scipy 1.18, scikit-learn 1.7.2, LightGBM 4.7.0, CatBoost 1.2.10 (all open source). Runs resume from per-(config, fold) checkpoints; the manifest of the code that fitted the models is never overwritten by a later re-aggregation.
 
 ## 10. Limitations and honest caveats
 * **Where this ran:** the fits were done in an Anthropic-hosted Linux container (4 vCPU), not on the project owner's Mac and not on Colab; the code runs unchanged on hosted Colab.

@@ -68,7 +68,7 @@ STATE = {}
 
 # --------------------------------------------------------------------------- features
 def build_outer(k):
-    train, dev, y = STATE['train'], STATE['dev'], STATE['y']
+    train, dev = STATE['train'], STATE['dev']
     tr, va = STATE['outer'][k]
     ff = FoldFeatures(train.iloc[tr])
     Xva, tva, mva = ff.transform(train.iloc[va].drop(columns='spam_label'))

@@ -1,0 +1,68 @@
+{
+  "config": "C3_composite_ce_softf1",
+  "fold": 0,
+  "n_train": 11442,
+  "n_val": 2864,
+  "inner_scores": {
+    "2.0": 0.7703352538318571,
+    "8.0": 0.7665770716181421,
+    "32.0": 0.7642802598781708
+  },
+  "C_star": 2.0,
+  "inner_oof_raw": 0.7632648723738957,
+  "bias": [
+    0.0,
+    0.6578211013960544,
+    0.32891055069801745,
+    0.32891055069801745
+  ],
+  "temperature": 1.0292031082534316,
+  "train_loss": 0.1328139061532524,
+  "val_loss": 0.464822726553504,
+  "stages": [
+    {
+      "alpha": 1.0,
+      "n_iter": 133,
+      "objective": 0.19783562148487227,
+      "data_loss": 0.10686065615592807,
+      "converged": true,
+      "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH"
+    },
+    {
+      "alpha": 0.8125,
+      "n_iter": 87,
+      "objective": 0.21516358069072566,
+      "data_loss": 0.11845371013080475,
+      "converged": true,
+      "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH"
+    },
+    {
+      "alpha": 0.4375000000000001,
+      "n_iter": 150,
+      "objective": 0.23337023327292022,
+      "data_loss": 0.12996357096873964,
+      "converged": false,
+      "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT"
+    },
+    {
+      "alpha": 0.25,
+      "n_iter": 150,
+      "objective": 0.235698717605051,
+      "data_loss": 0.1328139061532524,
+      "converged": false,
+      "message": "STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT"
+    }
+  ],
+  "fit_seconds": 130.7944893836975,
+  "val_nll_raw": 0.30628465127349525,
+  "val_nll_temperature": 0.305788304391355,
+  "val_f1_raw": 0.727836249679806,
+  "val_f1_post": 0.7387502413561579,
+  "val_per_class_post": [
+    0.9352046783625731,
+    0.5797101449275363,
+    0.5756097560975609,
+    0.864476386036961
+  ],
+  "seconds": 833.9960024356842
+}

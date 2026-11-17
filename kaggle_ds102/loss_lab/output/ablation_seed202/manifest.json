@@ -1,0 +1,80 @@
+{
+  "data_sha256": {
+    "ds102_train.csv": "15202b19b2dc2c6c89afeb209024bb0dc77ddf927de44381a96c24a961d823a5",
+    "ds102_dev.csv": "d895cc298b1e5b56bbb95c9f9b15610e5207a00cfd12cc79f32061e27b7a8ccf",
+    "ds102_test.csv": "82c21afd6f8f4610912bc12ed19c3b6b1a586fb0dfa5d2296f6548ae4fc6b398",
+    "ds102_samplesubmission.csv": "4cf7832636057152395b8b20302c11a691fd2ab35d50057ef43443f3d388424d"
+  },
+  "seed": 202,
+  "outer_folds": 5,
+  "inner_folds": 3,
+  "configs": {
+    "R0_repo_v2_svm_nbsvm": {
+      "kind": "repo_v2",
+      "role": "as deployed: 0.75 LinearSVC + 0.25 NB-SVM, C=0.5"
+    },
+    "B0_sq_hinge_balanced": {
+      "kind": "linear",
+      "spec": {
+        "name": "squared_hinge_ovr",
+        "weights": "balanced"
+      },
+      "grid": [
+        0.125,
+        0.25,
+        0.5
+      ],
+      "role": "baseline loss (repo loss) in controlled trainer"
+    },
+    "C1_cb_focal": {
+      "kind": "linear",
+      "spec": {
+        "name": "focal",
+        "gamma": 2.0,
+        "weights": "effective",
+        "beta": 0.999
+      },
+      "grid": [
+        8.0,
+        32.0,
+        128.0
+      ],
+      "role": "candidate 1: class-balanced focal (g=2, b=0.999)"
+    },
+    "C3_composite_ce_softf1": {
+      "kind": "linear",
+      "grid": [
+        2.0,
+        8.0,
+        32.0
+      ],
+      "spec": {
+        "name": "composite",
+        "base": {
+          "name": "ce",
+          "weights": "balanced"
+        },
+        "metric": {
+          "name": "soft_macro_f1"
+        },
+        "stages": 4,
+        "alpha_min": 0.25
+      },
+      "role": "composite: annealed CE_bal -> soft macro-F1"
+    }
+  },
+  "source_sha256": {
+    "analyze_strata.py": "1f33a0571283e3e21ba6b7adbe0f0687fc4b1bc007b18436fd2b59150be76e3f",
+    "data.py": "fbf2bcf4d226f5e88d69f6d9e018efdd7c11f5b02a8f14569e9164006042b855",
+    "explore_blends.py": "e6498969ae11264f7ac3aabec172ad47c09396c62aeb402596cafde7a93ae766",
+    "linear_model.py": "aeaf3cf632420ca747d50ad486b9de809f3a8314dd640bd6e8d7d775a0b86d25",
+    "losses.py": "66a997727cff122c3a2d6bd79a0ee23f48ad2b18fcc3b5ea666e108a2830c0cc",
+    "pilot_grid.py": "9860acf09c2a7a6ba726832c3e3527521b45ad474743092c2bd110d1c0f7a9dd",
+    "postprocess.py": "7fceb82fe5023dd671c695447b2d0cfb2e6a44efe900a7429fb021a246ac748f",
+    "run_ablation.py": "d67f82a3f32b0d4c372aca8d6febb1c7486353befc16587e85aad7dbc7fe0695",
+    "run_catboost_la.py": "01c36c629ea73497521e1b0a6c08e925c16c7934b4569255f2c2a088cd77b65e",
+    "run_gbdt_ablation.py": "dbc4fccb25f48a8767cfac83e54b8f12815dbc521dc2f0c3ec1b55b8bd53b0eb",
+    "test_losses.py": "7b4239124f6bc34752bdee9796dda13e787ec9ea688b54a81b03e85449a0d093"
+  },
+  "protocol": "(no validation statistic ever reaches a loss or a decision rule):\n  outer: 5-fold StratifiedGroupKFold (groups = normalised comment)\n  for every outer fold k and loss L:\n    inner: 3-fold grouped split of the outer-train part, features refitted per inner fold\n      -> inner OOF logits for every C in the family grid\n      -> C* = argmax inner-OOF macro-F1 (after bias tuning), ties -> smaller C\n      -> class offsets b_k and temperature T_k fitted on inner OOF at C*\n    refit L with C* on the whole outer-train part, score outer fold k raw and with b_k\n  dev: mean of the 5 outer models' logits + offsets tuned on pooled outer OOF (train labels only)"
+}

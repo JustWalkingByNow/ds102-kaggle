@@ -18,7 +18,6 @@ os.environ.setdefault('OMP_NUM_THREADS', '1')
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import numpy as np  # noqa: E402
 from sklearn.svm import LinearSVC  # noqa: E402
 
 from data import SEED, FoldFeatures, grouped_splits, guard_not_macos, load  # noqa: E402

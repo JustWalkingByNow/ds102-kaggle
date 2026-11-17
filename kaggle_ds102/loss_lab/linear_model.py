@@ -22,10 +22,16 @@ import numpy as np
 from scipy import sparse
 from scipy.optimize import minimize
 
-from losses import (CompositeLoss, FocalLoss, LogitAdjustedCrossEntropy, SoftMacroF1Loss,
-                    SoftmaxCrossEntropy, SquaredHingeOvR, balanced_class_weights,
-                    cosine_alpha_schedule, effective_number_weights, log_class_prior,
-                    log_softmax, sqrt_balanced_class_weights)
+try:                                    # imported as part of the loss_lab package
+    from .losses import (CompositeLoss, FocalLoss, LogitAdjustedCrossEntropy, SoftMacroF1Loss,
+                         SoftmaxCrossEntropy, SquaredHingeOvR, balanced_class_weights,
+                         cosine_alpha_schedule, effective_number_weights, log_class_prior,
+                         log_softmax, sqrt_balanced_class_weights)
+except ImportError:                     # run from inside loss_lab/ (scripts, tests)
+    from losses import (CompositeLoss, FocalLoss, LogitAdjustedCrossEntropy, SoftMacroF1Loss,
+                        SoftmaxCrossEntropy, SquaredHingeOvR, balanced_class_weights,
+                        cosine_alpha_schedule, effective_number_weights, log_class_prior,
+                        log_softmax, sqrt_balanced_class_weights)
 
 
 def class_weights_from_spec(kind, y, K, beta=0.999):
